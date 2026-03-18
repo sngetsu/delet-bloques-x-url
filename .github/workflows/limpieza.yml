@@ -1,16 +1,16 @@
 name: Limpieza de Enlaces JSON
 
 on:
-  workflow_dispatch: # Permite ejecutar el botón manualmente desde la pestaña "Actions"
+  workflow_dispatch: 
   push:
     paths:
-      - 'peliculas.json' # Opcional: Se ejecuta automáticamente si modificas este archivo
+      - 'peliculas.json' 
 
 jobs:
   limpiar-y-guardar:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # ⚠️ PERMISO CLAVE para poder escribir en el repositorio
+      contents: write 
 
     steps:
       - name: Descargar el repositorio
@@ -24,16 +24,23 @@ jobs:
       - name: Ejecutar script de limpieza
         run: python limpiar_catalogo.py
 
+      - name: Validar formato del JSON resultante
+        run: |
+          # Esto intentará leer el JSON. Si está roto por algún motivo, el proceso se detendrá aquí 
+          # y evitará subir un archivo corrupto a tu repositorio.
+          python -m json.tool peliculas.json > /dev/null
+          echo "✅ El JSON principal es válido y seguro para guardar."
+
       - name: Guardar cambios en GitHub (Commit & Push)
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           
-          # Añadir todos los archivos modificados o nuevos
+          # Añadir todos los archivos modificados o nuevos (incluyendo la nueva carpeta)
           git add .
           
-          # Hacer commit solo si hay cambios, si no, ignorar
-          git commit -m "🤖 Auto-limpieza: dominios filtrados y JSONs generados" || echo "No hay cambios para guardar"
+          # Hacer commit solo si hay cambios
+          git commit -m "🤖 Auto-limpieza: dominios filtrados, validados y movidos a carpeta" || echo "No hay cambios para guardar"
           
           # Subir al repositorio
           git push
