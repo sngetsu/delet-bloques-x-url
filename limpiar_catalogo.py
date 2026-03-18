@@ -10,45 +10,40 @@ CARPETA_SALIDA = 'enlaces_eliminados'
 OUT_BITLY = f'{CARPETA_SALIDA}/eliminados_bitly.json'
 OUT_GODNA = f'{CARPETA_SALIDA}/eliminados_godna.json'
 OUT_POMF2 = f'{CARPETA_SALIDA}/eliminados_pomf2.json'
-OUT_SIN_INFO = f'{CARPETA_SALIDA}/eliminados_sin_info.json' # Nuevo archivo
+OUT_SIN_INFO = f'{CARPETA_SALIDA}/eliminados_sin_info.json'
 
-# Dominios a buscar
+# Dominios a buscar (SIN http:// ni https:// para atrapar ambos)
 DOMINIOS = {
-    'bitly': 'http://bit.ly', # Actualizado
-    'godna': 'https://godna94.pp.ua',
-    'pomf2': 'https://pomf2.lain.la'
+    'bitly': 'bit.ly', 
+    'godna': 'godna94.pp.ua',
+    'pomf2': 'pomf2.lain.la'
 }
 # -----------------------------------------------
 
 def procesar_json():
-    # 1. Verificar que el archivo existe antes de hacer nada
     if not os.path.exists(ARCHIVO_PRINCIPAL):
         print(f"❌ ERROR CRÍTICO: No se encontró '{ARCHIVO_PRINCIPAL}'. Asegúrate de que el nombre sea exacto y esté en la raíz del repositorio.")
         sys.exit(1) 
 
-    # Crear la carpeta para los eliminados si no existe
     os.makedirs(CARPETA_SALIDA, exist_ok=True)
 
-    # Leer el JSON original
     with open(ARCHIVO_PRINCIPAL, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    # Diccionarios y listas para guardar los eliminados
     eliminados = {
         'bitly': [],
         'godna': [],
         'pomf2': []
     }
-    eliminados_sin_info = [] # Para guardar la categoría entera
+    eliminados_sin_info = [] 
     
     data_limpia = []
 
-    # 2. Procesar categorías y samples
     for categoria in data:
         # A. Extraer y eliminar la categoría entera "Sin información"
         if categoria.get('name') == "Sin información":
             eliminados_sin_info.append(categoria)
-            continue # Al usar 'continue', saltamos este bloque y no lo agregamos a 'data_limpia'
+            continue 
 
         # B. Procesar los enlaces de las demás categorías
         if 'samples' in categoria:
@@ -57,7 +52,7 @@ def procesar_json():
             for sample in categoria['samples']:
                 url = sample.get('url', '')
                 
-                # Filtrar y separar por dominio
+                # Al buscar solo 'bit.ly', atrapará http://bit.ly y https://bit.ly
                 if DOMINIOS['bitly'] in url:
                     eliminados['bitly'].append(sample)
                 elif DOMINIOS['godna'] in url:
@@ -67,17 +62,15 @@ def procesar_json():
                 else:
                     samples_limpios.append(sample)
             
-            # Reemplazar la lista vieja con la lista limpia
             categoria['samples'] = samples_limpios
         
-        # Guardar la categoría limpia
         data_limpia.append(categoria)
 
-    # 3. Guardar el JSON original actualizado (limpio)
+    # Guardar el JSON original actualizado (limpio)
     with open(ARCHIVO_PRINCIPAL, 'w', encoding='utf-8') as f:
         json.dump(data_limpia, f, indent=2, ensure_ascii=False)
 
-    # 4. Guardar los 4 nuevos JSON con los eliminados en su carpeta
+    # Guardar los JSON con los eliminados
     if eliminados['bitly']:
         with open(OUT_BITLY, 'w', encoding='utf-8') as f:
             json.dump(eliminados['bitly'], f, indent=2, ensure_ascii=False)
