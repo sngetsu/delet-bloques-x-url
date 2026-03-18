@@ -1,10 +1,12 @@
 name: Limpieza de Enlaces JSON
 
 on:
-  workflow_dispatch: 
-  push:
-    paths:
-      - 'movies.json' 
+  workflow_dispatch:
+    inputs:
+      dominios_input:
+        description: 'Dominios a eliminar (separados por coma, ej: nuevodominio.com, otro.net)'
+        required: true
+        type: string
 
 jobs:
   limpiar-y-guardar:
@@ -22,12 +24,12 @@ jobs:
           python-version: '3.x'
 
       - name: Ejecutar script de limpieza
+        env:
+          DOMINIOS_A_ELIMINAR: ${{ inputs.dominios_input }} 
         run: python limpiar_catalogo.py
 
       - name: Validar formato del JSON resultante
         run: |
-          # Esto intentará leer el JSON. Si está roto por algún motivo, el proceso se detendrá aquí 
-          # y evitará subir un archivo corrupto a tu repositorio.
           python -m json.tool movies.json > /dev/null
           echo "✅ El JSON principal es válido y seguro para guardar."
 
@@ -36,11 +38,6 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           
-          # Añadir todos los archivos modificados o nuevos (incluyendo la nueva carpeta)
           git add .
-          
-          # Hacer commit solo si hay cambios
-          git commit -m "🤖 Auto-limpieza: dominios filtrados, validados y movidos a carpeta" || echo "No hay cambios para guardar"
-          
-          # Subir al repositorio
+          git commit -m "🤖 Auto-limpieza de dominios dinámicos" || echo "No hay cambios para guardar"
           git push
