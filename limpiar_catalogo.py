@@ -2,12 +2,13 @@ import json
 import os
 
 # ---------------- CONFIGURACIÓN ----------------
-ARCHIVO_PRINCIPAL = 'peliculas.json' # Reemplaza con el nombre de tu JSON principal
+ARCHIVO_PRINCIPAL = 'movies.json' # Nombre de tu archivo original en la raíz
+CARPETA_SALIDA = 'enlaces_eliminados' # Carpeta donde se guardarán los eliminados
 
-# Archivos de salida para los eliminados
-OUT_BITLY = 'eliminados_bitly.json'
-OUT_GODNA = 'eliminados_godna.json'
-OUT_POMF2 = 'eliminados_pomf2.json'
+# Archivos de salida dentro de la carpeta
+OUT_BITLY = f'{CARPETA_SALIDA}/eliminados_bitly.json'
+OUT_GODNA = f'{CARPETA_SALIDA}/eliminados_godna.json'
+OUT_POMF2 = f'{CARPETA_SALIDA}/eliminados_pomf2.json'
 
 # Dominios a buscar
 DOMINIOS = {
@@ -21,6 +22,9 @@ def procesar_json():
     if not os.path.exists(ARCHIVO_PRINCIPAL):
         print(f"Error: No se encontró el archivo {ARCHIVO_PRINCIPAL}")
         return
+
+    # Crear la carpeta para los eliminados si no existe
+    os.makedirs(CARPETA_SALIDA, exist_ok=True)
 
     # Leer el JSON original
     with open(ARCHIVO_PRINCIPAL, 'r', encoding='utf-8') as f:
@@ -49,7 +53,7 @@ def procesar_json():
                 elif DOMINIOS['pomf2'] in url:
                     eliminados['pomf2'].append(sample)
                 else:
-                    samples_limpios.append(sample) # Se conserva si no coincide
+                    samples_limpios.append(sample)
             
             # Reemplazar la lista vieja con la lista limpia
             categoria['samples'] = samples_limpios
@@ -58,7 +62,7 @@ def procesar_json():
     with open(ARCHIVO_PRINCIPAL, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
-    # 2. Guardar los 3 nuevos JSON con los eliminados
+    # 2. Guardar los 3 nuevos JSON con los eliminados en su carpeta
     if eliminados['bitly']:
         with open(OUT_BITLY, 'w', encoding='utf-8') as f:
             json.dump(eliminados['bitly'], f, indent=2, ensure_ascii=False)
@@ -71,7 +75,7 @@ def procesar_json():
         with open(OUT_POMF2, 'w', encoding='utf-8') as f:
             json.dump(eliminados['pomf2'], f, indent=2, ensure_ascii=False)
             
-    print("Limpieza completada con éxito. Archivos generados.")
+    print(f"Limpieza completada. Archivos eliminados guardados en la carpeta '{CARPETA_SALIDA}'.")
 
 if __name__ == '__main__':
     procesar_json()
