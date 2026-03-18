@@ -28,7 +28,7 @@ jobs:
         run: |
           # Esto intentará leer el JSON. Si está roto por algún motivo, el proceso se detendrá aquí 
           # y evitará subir un archivo corrupto a tu repositorio.
-          python -m json.tool peliculas.json > /dev/null
+          python -m json.tool movies.json > /dev/null
           echo "✅ El JSON principal es válido y seguro para guardar."
 
       - name: Guardar cambios en GitHub (Commit & Push)
