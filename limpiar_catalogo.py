@@ -1,93 +1,74 @@
 import json
 import os
 import sys
+import re
 
 # ---------------- CONFIGURACIÓN ----------------
 ARCHIVO_PRINCIPAL = 'movies.json' 
 CARPETA_SALIDA = 'enlaces_eliminados' 
-
-# Archivos de salida dentro de la carpeta
-OUT_BITLY = f'{CARPETA_SALIDA}/eliminados_bitly.json'
-OUT_GODNA = f'{CARPETA_SALIDA}/eliminados_godna.json'
-OUT_POMF2 = f'{CARPETA_SALIDA}/eliminados_pomf2.json'
-OUT_SIN_INFO = f'{CARPETA_SALIDA}/eliminados_sin_info.json'
-
-# Dominios a buscar (SIN http:// ni https:// para atrapar ambos)
-DOMINIOS = {
-    'bitly': 'bit.ly', 
-    'godna': 'godna94.pp.ua',
-    'pomf2': 'pomf2.lain.la'
-}
 # -----------------------------------------------
 
 def procesar_json():
     if not os.path.exists(ARCHIVO_PRINCIPAL):
-        print(f"❌ ERROR CRÍTICO: No se encontró '{ARCHIVO_PRINCIPAL}'. Asegúrate de que el nombre sea exacto y esté en la raíz del repositorio.")
+        print(f"❌ ERROR CRÍTICO: No se encontró '{ARCHIVO_PRINCIPAL}'.")
         sys.exit(1) 
+
+    # 1. Leer los dominios ingresados desde GitHub Actions
+    dominios_env = os.environ.get('DOMINIOS_A_ELIMINAR', '')
+    if not dominios_env:
+        print("⚠️ No se ingresaron dominios para eliminar. No hay nada que hacer.")
+        sys.exit(0)
+
+    # Limpiar espacios y separar por comas (ej: "nuevo.com,  otro.net " -> ["nuevo.com", "otro.net"])
+    lista_dominios = [d.strip() for d in dominios_env.split(',') if d.strip()]
+    print(f"🔍 Buscando los siguientes dominios: {lista_dominios}")
 
     os.makedirs(CARPETA_SALIDA, exist_ok=True)
 
     with open(ARCHIVO_PRINCIPAL, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    eliminados = {
-        'bitly': [],
-        'godna': [],
-        'pomf2': []
-    }
-    eliminados_sin_info = [] 
+    # Crear diccionario dinámico para agrupar los eliminados según el dominio
+    eliminados_dinamicos = {dominio: [] for dominio in lista_dominios}
     
-    data_limpia = []
-
+    # 2. Procesar el JSON
     for categoria in data:
-        # A. Extraer y eliminar la categoría entera "Sin información"
-        if categoria.get('name') == "Sin información":
-            eliminados_sin_info.append(categoria)
-            continue 
-
-        # B. Procesar los enlaces de las demás categorías
         if 'samples' in categoria:
             samples_limpios = []
             
             for sample in categoria['samples']:
                 url = sample.get('url', '')
+                fue_eliminado = False
                 
-                # Al buscar solo 'bit.ly', atrapará http://bit.ly y https://bit.ly
-                if DOMINIOS['bitly'] in url:
-                    eliminados['bitly'].append(sample)
-                elif DOMINIOS['godna'] in url:
-                    eliminados['godna'].append(sample)
-                elif DOMINIOS['pomf2'] in url:
-                    eliminados['pomf2'].append(sample)
-                else:
+                # Revisar si la URL contiene alguno de los dominios ingresados
+                for dominio in lista_dominios:
+                    if dominio in url:
+                        eliminados_dinamicos[dominio].append(sample)
+                        fue_eliminado = True
+                        break # Si ya encontró coincidencia, pasa al siguiente sample
+                
+                if not fue_eliminado:
                     samples_limpios.append(sample)
             
             categoria['samples'] = samples_limpios
-        
-        data_limpia.append(categoria)
 
-    # Guardar el JSON original actualizado (limpio)
+    # 3. Guardar JSON principal limpio
     with open(ARCHIVO_PRINCIPAL, 'w', encoding='utf-8') as f:
-        json.dump(data_limpia, f, indent=2, ensure_ascii=False)
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
-    # Guardar los JSON con los eliminados
-    if eliminados['bitly']:
-        with open(OUT_BITLY, 'w', encoding='utf-8') as f:
-            json.dump(eliminados['bitly'], f, indent=2, ensure_ascii=False)
+    # 4. Guardar archivos dinámicos y mostrar resumen
+    for dominio, lista_eliminados in eliminados_dinamicos.items():
+        if lista_eliminados:
+            # Limpiar el nombre del dominio para usarlo como archivo (ej: nuevo.com -> nuevo_com)
+            nombre_seguro = re.sub(r'[^a-zA-Z0-9]', '_', dominio)
+            ruta_archivo = f'{CARPETA_SALIDA}/eliminados_{nombre_seguro}.json'
             
-    if eliminados['godna']:
-        with open(OUT_GODNA, 'w', encoding='utf-8') as f:
-            json.dump(eliminados['godna'], f, indent=2, ensure_ascii=False)
+            with open(ruta_archivo, 'w', encoding='utf-8') as f:
+                json.dump(lista_eliminados, f, indent=2, ensure_ascii=False)
+            
+            print(f"✅ Se eliminaron {len(lista_eliminados)} enlaces del dominio '{dominio}'.")
 
-    if eliminados['pomf2']:
-        with open(OUT_POMF2, 'w', encoding='utf-8') as f:
-            json.dump(eliminados['pomf2'], f, indent=2, ensure_ascii=False)
-            
-    if eliminados_sin_info:
-        with open(OUT_SIN_INFO, 'w', encoding='utf-8') as f:
-            json.dump(eliminados_sin_info, f, indent=2, ensure_ascii=False)
-            
-    print(f"✅ Limpieza completada. Archivos generados en la carpeta '{CARPETA_SALIDA}'.")
+    print("🚀 Limpieza completada exitosamente.")
 
 if __name__ == '__main__':
     procesar_json()
